@@ -32,7 +32,10 @@ Simply run `shorkmatrix`.
 
 * `-h`, `--help`: Shows help information and exits
 * `-g`, `--green`: Changes the droplet colour to green
-* `-ncl`, `--no-clear`: Prevents clearing the terminal before starting
-* `-nco`, `--no-col`: Disables all coloured output
-* `-sh`, `--single-head`: Makes the light head of the droplets one character long instead of two
+* `-ma`, `--magenta`: Changes the droplet colour to magenta
+* `-mo`, `--mono`: Disables colour support and lighter heads
+* `-nc`, `--no-clear`: Prevents clearing the terminal before starting
+* `-r`, `--red`: Changes the droplet colour to red
+* `-sh`, `--single-head`: Makes the lighter head of the droplets one character long instead of two
 * `-u`, `--update`: Custom draw update control value (be must positive whole number)
+* `-y`, `--yellow`: Changes the droplet colour to yellow

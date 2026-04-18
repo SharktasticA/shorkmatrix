@@ -76,7 +76,10 @@ typedef struct
 
 static char *COL_TRAIL = COL_FOR_BLUE;
 static char *COL_HEAD = COL_FOR_BOLD_CYAN;
+static int DOUBLE_HEAD = 1;
 static Droplet *DROPLETS;
+static int MONO = 0;
+static struct termios OLD_TERMIOS;
 const char PREDEFINED_WORDS[MAX_WORDS][MAX_WORD_LEN] = {
     "ADMIRALSHARK",
     "BEAMSPRING",
@@ -106,7 +109,6 @@ const char PREDEFINED_WORDS[MAX_WORDS][MAX_WORD_LEN] = {
     "SHORKUTILS",
     "SKATE"
 };
-static struct termios OLD_TERMIOS;
 static int SCREEN_HEIGHT;
 static int SCREEN_WIDTH;
 static struct winsize TERM_SIZE;
@@ -178,8 +180,8 @@ void fillScreen(char screen[SCREEN_HEIGHT][SCREEN_WIDTH], int firstDropletDone[S
     {
         firstDropletDone[i] = 0;
 
-        // 1/5 chance of proceeding
-        if (rand() % 5 != 0) continue;
+        // 1/3 chance of proceeding
+        if (rand() % 3 != 0) continue;
 
         // Pick a word
         int wordI = rand() % MAX_WORDS;
@@ -272,10 +274,175 @@ struct winsize getTerminalSize(void)
 }
 
 /**
- * Prints the entire screen matrix on screen. Mostly used for debugging.
+ * Prints a frame of current droplets without colour support.
+ * @param screen The screen matrix
+ * @param firstDropletDone The flags for if first droplet has passed
+ */
+void printFrameNoCol(char screen[SCREEN_HEIGHT][SCREEN_WIDTH], int firstDropletDone[SCREEN_WIDTH])
+{
+    for (int i = 0; i < SCREEN_WIDTH; i++)
+    {
+        Droplet *dl = &DROPLETS[i];
+
+        // Check if we need a new droplet
+        if (dl->len == 0)
+        {
+            int spawnChance = 2;
+
+            // This helps prevent the a massive burst of droplets at the beginning
+            if (!firstDropletDone[i])
+                spawnChance = (30 > 0 ? 30 : 10);
+            
+            if (rand() % spawnChance == 0)
+            {
+                *dl = createDroplet(i, 1);
+                firstDropletDone[i] = 1;
+            }
+
+            continue;
+        }
+
+        //if (dl->vis)
+        {
+            // Erase the character above the droplet's head
+            if (dl->row > 0)
+            {
+                int eraseRow = dl->row - 1;
+                if (eraseRow >= 0 && eraseRow < SCREEN_HEIGHT)
+                {
+                    printf("\033[%d;%dH ", eraseRow + 1, dl->col + 1);
+                }
+            }
+
+            // Draw the droplet
+            for (int j = 0; j < dl->len; j++)
+            {
+                int row = dl->row + j;
+                if (row >= 0 && row < SCREEN_HEIGHT)
+                {
+                    char ch = screen[row][dl->col];
+                    printf("\033[%d;%dH%c", row + 1, dl->col + 1, ch);
+                }
+            }
+
+            fflush(stdout);
+        }
+
+        dl->row++;
+
+        //if (dl->vis)
+        {
+            // See if the droplet may be out of the screen
+            if (dl->row >= SCREEN_HEIGHT)
+            {
+                // Flags this column can have a new droplet
+                dl->len = 0;
+
+                // Erase the last trial
+                int lastBottom = dl->row + dl->len - 1;
+                if (lastBottom >= 0 && lastBottom < SCREEN_HEIGHT)
+                {
+                    printf("\033[%d;%dH ", lastBottom + 1, dl->col + 1);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Prints a frame of current droplets with colour support.
+ * @param screen The screen matrix
+ * @param firstDropletDone The flags for if first droplet has passed
+ */
+void printFrameCol(char screen[SCREEN_HEIGHT][SCREEN_WIDTH], int firstDropletDone[SCREEN_WIDTH])
+{
+    for (int i = 0; i < SCREEN_WIDTH; i++)
+    {
+        Droplet *dl = &DROPLETS[i];
+
+        // Check if we need a new droplet
+        if (dl->len == 0)
+        {
+            int spawnChance = 2;
+
+            // This helps prevent the a massive burst of droplets at the beginning
+            if (!firstDropletDone[i])
+                spawnChance = (30 > 0 ? 30 : 10);
+            
+            if (rand() % spawnChance == 0)
+            {
+                *dl = createDroplet(i, 1);
+                firstDropletDone[i] = 1;
+            }
+
+            continue;
+        }
+
+        //if (dl->vis)
+        {
+            // Erase the character above the droplet's head
+            if (dl->row > 0)
+            {
+                int eraseRow = dl->row - 1;
+                if (eraseRow >= 0 && eraseRow < SCREEN_HEIGHT)
+                {
+                    printf("\033[%d;%dH ", eraseRow + 1, dl->col + 1);
+                }
+            }
+
+            // Draw the bottom of the head
+            int bottomMost = dl->row + dl->len - 1;
+            if (bottomMost < SCREEN_HEIGHT)
+            {
+                char ch = screen[bottomMost][dl->col];
+                printf("\033[%d;%dH\033[%sm%c\033[%sm", bottomMost + 1, dl->col + 1, COL_HEAD, ch, COL_RESET);
+            }
+
+            // Draw a second character of the head (if flagged to do so)
+            int bottomSecond = bottomMost - 1;
+            if (DOUBLE_HEAD && bottomSecond >= 0 && bottomSecond < SCREEN_HEIGHT)
+            {
+                char ch = screen[bottomSecond][dl->col];
+                printf("\033[%d;%dH\033[%sm%c\033[%sm", bottomSecond + 1, dl->col + 1, COL_HEAD, ch, COL_RESET);
+            }
+
+            // Draw the trail
+            int bodyRow = DOUBLE_HEAD ? (bottomSecond - 1) : (bottomMost - 1);
+            if (bodyRow >= 0 && bodyRow < SCREEN_HEIGHT)
+            {
+                char ch = screen[bodyRow][dl->col];
+                printf("\033[%d;%dH\033[%sm%c\033[%sm", bodyRow + 1, dl->col + 1, COL_TRAIL, ch, COL_RESET);
+            }
+            
+            fflush(stdout);
+        }
+
+        dl->row++;
+
+        //if (dl->vis)
+        {
+            // See if the droplet may be out of the screen
+            if (dl->row >= SCREEN_HEIGHT)
+            {
+                // Flags this column can have a new droplet
+                dl->len = 0;
+
+                // Erase the last trial
+                int lastBottom = dl->row + dl->len - 1;
+                if (lastBottom >= 0 && lastBottom < SCREEN_HEIGHT)
+                {
+                    printf("\033[%d;%dH ", lastBottom + 1, dl->col + 1);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Prints the entire screen matrix on screen. Intended for debugging.
  * @param screen The screen matrix
  */
-void printFullScreen(char screen[SCREEN_HEIGHT][SCREEN_WIDTH])
+void printMatrix(char screen[SCREEN_HEIGHT][SCREEN_WIDTH])
 {
     printf("\033[H");
     for (int i = 0; i < SCREEN_HEIGHT; i++)
@@ -318,14 +485,17 @@ void showHelp(void)
     formatNewLines(usage, TERM_SIZE.ws_col, NULL);
     printf("%s", usage);
 
-    char options[470] = "\
+    char options[670] = "\
 Options:\n\
 -h, --help            Displays help information and exits\n\
 -g, --green           Changes the droplet colour to green\n\
--ncl, --no-clear      Prevents clearing the terminal before starting\n\
--nco, --no-col        Disables all coloured output\n\
--sh, --single-head    Makes the light head of the droplets one character long instead of two\n\
--u, --update          Custom draw update control value (be must positive whole number)\n\n";
+-ma, --magenta        Changes the droplet colour to magenta\n\
+-mo, --mono           Disables colour support and lighter heads\n\
+-nc, --no-clear       Prevents clearing the terminal before starting\n\
+-r, --red             Changes the droplet colour to red\n\
+-sh, --single-head    Makes the lighter head of the droplets one character long instead of two\n\
+-u, --update          Custom draw update control value (be must positive whole number)\n\
+-y, --yellow          Changes the droplet colour to yellow\n\n";
     formatNewLines(options, TERM_SIZE.ws_col, "                      ");
     printf("%s", options);
 
@@ -340,7 +510,6 @@ Options:\n\
 int main(int argc, char *argv[])
 {
     TERM_SIZE = getTerminalSize();
-    int doubleHead = 1;
     int noClear = 0;
     int update = 40000;
 
@@ -356,18 +525,29 @@ int main(int argc, char *argv[])
             COL_TRAIL = COL_FOR_GREEN;
             COL_HEAD = COL_FOR_WHITE;
         }
-        else if ((strcmp(argv[i], "-ncl") == 0) || (strcmp(argv[i], "--no-clear") == 0))
+        else if ((strcmp(argv[i], "-ma") == 0) || (strcmp(argv[i], "--magenta") == 0))
         {
-            noClear = 1;
+            COL_TRAIL = COL_FOR_MAGENTA;
+            COL_HEAD = COL_FOR_BOLD_MAGENTA;
         }
-        else if ((strcmp(argv[i], "-nco") == 0) || (strcmp(argv[i], "--no-col") == 0))
+        else if ((strcmp(argv[i], "-mo") == 0) || (strcmp(argv[i], "--mono") == 0))
         {
+            MONO = 1;
             COL_TRAIL = COL_FOR_RESET;
             COL_HEAD = COL_FOR_RESET;
         }
+        else if ((strcmp(argv[i], "-nc") == 0) || (strcmp(argv[i], "--no-clear") == 0))
+        {
+            noClear = 1;
+        }
+        else if ((strcmp(argv[i], "-r") == 0) || (strcmp(argv[i], "--red") == 0))
+        {
+            COL_TRAIL = COL_FOR_RED;
+            COL_HEAD = COL_FOR_BOLD_RED;
+        }
         else if ((strcmp(argv[i], "-sh") == 0) || (strcmp(argv[i], "--single-head") == 0))
         {
-            doubleHead = 0;
+            DOUBLE_HEAD = 0;
         }
         else if ((strcmp(argv[i], "-u") == 0) || (strcmp(argv[i], "--update") == 0))
         {
@@ -388,6 +568,11 @@ int main(int argc, char *argv[])
 
             update = (int)val;
             continue;
+        }
+        else if ((strcmp(argv[i], "-y") == 0) || (strcmp(argv[i], "--yellow") == 0))
+        {
+            COL_TRAIL = COL_FOR_YELLOW;
+            COL_HEAD = COL_FOR_BOLD_YELLOW;
         }
     }
 
@@ -414,93 +599,22 @@ int main(int argc, char *argv[])
     fillScreen(screen, firstDropletDone);
     if (!noClear) clearScreen();
 
-    while (1)
+    if (MONO)
     {
-        for (int i = 0; i < SCREEN_WIDTH; i++)
+        while (1)
         {
-            Droplet *dl = &DROPLETS[i];
-
-            // Check if we need a new droplet
-            if (dl->len == 0)
-            {
-                int spawnChance = 2;
-
-                // This helps prevent the a massive burst of droplets at the beginning
-                if (!firstDropletDone[i])
-                    spawnChance = (30 > 0 ? 30 : 10);
-                
-                if (rand() % spawnChance == 0)
-                {
-                    *dl = createDroplet(i, 1);
-                    firstDropletDone[i] = 1;
-                }
-
-                continue;
-            }
-
-            //if (dl->vis)
-            {
-                // Erase the character above the droplet's head
-                if (dl->row > 0)
-                {
-                    int eraseRow = dl->row - 1;
-                    if (eraseRow >= 0 && eraseRow < SCREEN_HEIGHT)
-                    {
-                        printf("\033[%d;%dH ", eraseRow + 1, dl->col + 1);
-                    }
-                }
-
-                // Draw the bottom of the head
-                int bottomMost = dl->row + dl->len - 1;
-                if (bottomMost < SCREEN_HEIGHT)
-                {
-                    char ch = screen[bottomMost][dl->col];
-                    printf("\033[%d;%dH\033[%sm%c\033[%sm", bottomMost + 1, dl->col + 1, COL_HEAD, ch, COL_RESET);
-                }
-
-                // Draw a second character of the head (if flagged to do so)
-                int bottomSecond = bottomMost - 1;
-                if (doubleHead && bottomSecond >= 0 && bottomSecond < SCREEN_HEIGHT)
-                {
-                    char ch = screen[bottomSecond][dl->col];
-                    printf("\033[%d;%dH\033[%sm%c\033[%sm", bottomSecond + 1, dl->col + 1, COL_HEAD, ch, COL_RESET);
-                }
-
-                // Draw the trail
-                int bodyRow = doubleHead ? (bottomSecond - 1) : (bottomMost - 1);
-                if (bodyRow >= 0 && bodyRow < SCREEN_HEIGHT)
-                {
-                    char ch = screen[bodyRow][dl->col];
-                    printf("\033[%d;%dH\033[%sm%c\033[%sm", bodyRow + 1, dl->col + 1, COL_TRAIL, ch, COL_RESET);
-                }
-                
-                fflush(stdout);
-            }
-
-            dl->row++;
-
-            //if (dl->vis)
-            {
-                // See if the droplet may be out of the screen
-                if (dl->row >= SCREEN_HEIGHT)
-                {
-                    // Flags this column can have a new droplet
-                    dl->len = 0;
-
-                    // Erase the last trial
-                    int lastBottom = dl->row + dl->len - 1;
-                    if (lastBottom >= 0 && lastBottom < SCREEN_HEIGHT)
-                    {
-                        printf("\033[%d;%dH ", lastBottom + 1, dl->col + 1);
-                    }
-                }
-            }
+            printFrameNoCol(screen, firstDropletDone);
+            usleep(update);
         }
-
-        usleep(update);
+    }
+    else
+    {
+        while (1)
+        {
+            printFrameCol(screen, firstDropletDone);
+            usleep(update);
+        }
     }
 
-
-    
     return 0;
 }
