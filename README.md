@@ -4,6 +4,8 @@ My minimalist, blue-themed take on [Abishek V Ashok's CMatrix](https://github.co
 
 **Disclaimer:** shorkmatrix is an unofficial, non-commercial and fan-made homage to The Matrix. It is not endorsed by, sponsored by, or affiliated with Warner Bros. or The Matrix franchise. All trademarks, logos, and copyrights are the property of their respective owners. No copyright infringement is intended.
 
+<p align="center"><img alt="A screenshot of shorkmatrix running" src="screenshot.png"></p>
+
 
 
 ## Building
