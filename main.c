@@ -14,6 +14,10 @@
 
 
 
+static const char *VERSION = "1.0-pt1";
+
+
+
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <signal.h>
@@ -485,18 +489,19 @@ void showHelp(void)
     formatNewLines(usage, TERM_SIZE.ws_col, NULL);
     printf("%s", usage);
 
-    char options[670] = "\
+    char options[700] = "\
 Options:\n\
--h, --help            Displays help information and exits\n\
--g, --green           Changes the droplet colour to green\n\
--ma, --magenta        Changes the droplet colour to magenta\n\
--mo, --mono           Disables colour support and lighter heads\n\
--nc, --no-clear       Prevents clearing the terminal before starting\n\
--r, --red             Changes the droplet colour to red\n\
--sh, --single-head    Makes the lighter head of the droplets one character long instead of two\n\
--u, --update          Custom draw update control value (be must positive whole number)\n\
--y, --yellow          Changes the droplet colour to yellow\n\n";
-    formatNewLines(options, TERM_SIZE.ws_col, "                      ");
+-h, --help          Displays help information and exits\n\
+-g, --green         Changes the droplet colour to green\n\
+-ma, --magenta      Changes the droplet colour to magenta\n\
+-mo, --mono         Disables colour support and lighter heads\n\
+-nc, --no-clear     Prevents clearing the terminal before starting\n\
+-r, --red           Changes the droplet colour to red\n\
+-sh, --single-head  Makes the lighter head of the droplets one character long instead of two\n\
+-u, --update        Custom draw update control value (be must positive whole number)\n\
+-v, --version       Displays version number and exits\n\
+-y, --yellow        Changes the droplet colour to yellow\n\n";
+    formatNewLines(options, TERM_SIZE.ws_col, "                    ");
     printf("%s", options);
 
     char notes[80];
@@ -568,6 +573,11 @@ int main(int argc, char *argv[])
 
             update = (int)val;
             continue;
+        }
+        else if ((strcmp(argv[i], "-v") == 0) || (strcmp(argv[i], "--version") == 0))
+        {            
+            printf("SHORKMATRIX %s\n", VERSION);
+            return 0;
         }
         else if ((strcmp(argv[i], "-y") == 0) || (strcmp(argv[i], "--yellow") == 0))
         {

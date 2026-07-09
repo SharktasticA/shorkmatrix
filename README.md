@@ -1,4 +1,4 @@
-# shorkmatrix
+# SHORKMATRIX
 
 My minimalist, blue-themed take on [Abishek V Ashok's CMatrix](https://github.com/abishekvashok/cmatrix). shorkmatrix is a "digital rain" vertical scrolling text screensaver, inspired by the 1999 film "The Matrix". The film and its subsequent franchise used similar visualisations of falling computer code to depict the activity of the titular simulated reality environment. The "droplets" of this digital rain are lines of blue characters that fall from the top of the terminal to the bottom, and are occasionally broken up. This implementation is designed to be more performant on SHORK Operating Systems like [SHORK 486](https://github.com/SharktasticA/SHORK-486). It also works on modern Linux distributions just fine.
 
@@ -40,4 +40,5 @@ Simply run `shorkmatrix`.
 * `-r`, `--red`: Changes the droplet colour to red
 * `-sh`, `--single-head`: Makes the lighter head of the droplets one character long instead of two
 * `-u`, `--update`: Custom draw update control value (be must positive whole number)
+* `-v`, `--version`: Displays version number and exits
 * `-y`, `--yellow`: Changes the droplet colour to yellow
